@@ -1,0 +1,16 @@
+# On évite d'envoyer les gros fichiers / dossiers inutiles au contexte de
+# build Docker (ça accélère le build et évite d'embarquer des données ou
+# des secrets par erreur).
+.git/
+notebooks/
+models/
+src/
+*.csv
+*.parquet
+*.pth
+*.npy
+*.pkl
+__pycache__/
+.env
+.venv/
+venv/

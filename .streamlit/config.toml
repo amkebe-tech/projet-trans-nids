@@ -1,0 +1,26 @@
+# Thème global de l'application, façon "console SOC" (dark mode, accent
+# cyan technique). C'est la méthode propre et supportée par Streamlit pour
+# définir un thème cohérent — à préférer au CSS custom partout où c'est
+# possible. Le CSS custom (app/assets/style.css) ne sert qu'à ce que ce
+# fichier de thème ne peut pas faire (cartes, badges, police monospace
+# ciblée, etc.).
+[theme]
+base = "dark"
+
+# Bleu nuit / anthracite plutôt que noir pur : plus doux à l'œil sur de
+# longues sessions de monitoring, standard dans les outils SOC/SIEM.
+backgroundColor = "#0b1220"
+secondaryBackgroundColor = "#121a2b"
+
+# Texte clair, légèrement bleuté plutôt que blanc pur (moins agressif).
+textColor = "#e6edf3"
+
+# Bleu-cyan technique, façon terminal réseau — remplace le violet par
+# défaut de Streamlit. Utilisé pour les boutons, sliders, liens, éléments
+# actifs.
+primaryColor = "#22d3ee"
+
+# Police de base sans-serif pour les titres et le texte explicatif. Les
+# valeurs numériques/techniques (scores, features) sont mises en monospace
+# via le CSS custom, pas via ce réglage global.
+font = "sans serif"

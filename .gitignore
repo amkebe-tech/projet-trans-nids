@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Projet NIDS : données et modèles ---
+# Aucun gros fichier de données brutes ou de poids de modèle ne doit être
+# committé sur GitHub (cahier des charges : datasets de plusieurs dizaines
+# de Go, poids .pth potentiellement volumineux).
+*.csv
+*.parquet
+*.pth
+*.npy
+*.pkl

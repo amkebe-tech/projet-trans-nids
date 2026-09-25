@@ -1,0 +1,15 @@
+# Dépendances actuelles du prototype (placeholders uniquement).
+streamlit>=1.38
+pandas>=2.2
+numpy>=1.26
+plotly>=5.22   # jauge de score dans l'écran "Résultat"
+altair>=5.3    # graphique de contribution des features (déjà utilisé en interne par Streamlit, mais on le déclare car on l'importe directement)
+
+# Dépendances qui seront nécessaires quand le vrai modèle (VAE/LSTM) et le
+# vrai module d'explicabilité seront branchés. Décommenter au moment de
+# l'intégration :
+# torch>=2.2          # inférence du VAE / LSTM entraîné sur Colab
+# pyarrow>=15.0        # lecture des fichiers .parquet du pipeline de données
+# shap>=0.45
+# lime>=0.2
+# trustee>=1.1

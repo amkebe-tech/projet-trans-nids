@@ -1,0 +1,169 @@
+/*
+ * Style custom "console SOC" pour compléter le thème de .streamlit/config.toml.
+ *
+ * Le thème Streamlit (config.toml) gère les couleurs globales de base
+ * (fond, texte, couleur primaire). Ce fichier ne sert qu'à ce que le thème
+ * ne peut pas faire : police monospace ciblée sur les valeurs techniques,
+ * cartes d'alerte avec bordure colorée selon le verdict, badges, bandeau
+ * d'avertissement intégré au thème sombre.
+ *
+ * Règle de couleurs sémantiques (respectée partout dans ce fichier ET dans
+ * le code Python qui génère le HTML/les graphiques) :
+ *   - vert   (--nids-normal)  = trafic normal, JAMAIS utilisé pour autre chose
+ *   - rouge  (--nids-anomalie) = anomalie/alerte, JAMAIS utilisé pour autre chose
+ *   - cyan   (--nids-accent)  = accent d'interface neutre (pas un verdict)
+ *   - ambre  (--nids-warning) = notices système (ex: bandeau "placeholder"),
+ *                                 distinct des deux couleurs de verdict
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+    --nids-bg-card: #121a2b;
+    --nids-border: #22304a;
+    --nids-text-muted: #8b98ac;
+    --nids-accent: #22d3ee;
+    --nids-normal: #22c55e;
+    --nids-anomalie: #ef4444;
+    --nids-warning: #f59e0b;
+    --nids-mono: 'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace;
+}
+
+/* --- Valeurs numériques / techniques en monospace --------------------- */
+/* Scores natifs Streamlit (st.metric), tableaux de données et notre
+   propre code custom (.nids-mono) partagent la même police monospace. */
+[data-testid="stMetricValue"],
+[data-testid="stMetricLabel"],
+[data-testid="stDataFrame"] *,
+.nids-mono {
+    font-family: var(--nids-mono) !important;
+}
+
+/* --- En-tête ------------------------------------------------------------ */
+.nids-header {
+    text-align: center;
+    padding: 0.5rem 0 1rem 0;
+}
+
+.nids-header__title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--nids-text-color, #e6edf3);
+    margin: 0;
+    letter-spacing: 0.01em;
+}
+
+.nids-header__subtitle {
+    font-family: var(--nids-mono);
+    font-size: 0.78rem;
+    color: var(--nids-accent);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-top: 0.4rem;
+}
+
+.nids-header__divider {
+    height: 2px;
+    margin: 1rem auto 0 auto;
+    max-width: 320px;
+    background: linear-gradient(90deg, transparent, var(--nids-accent), transparent);
+}
+
+.nids-badge-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+    flex-wrap: wrap;
+}
+
+.nids-badge {
+    font-family: var(--nids-mono);
+    font-size: 0.72rem;
+    color: var(--nids-text-muted);
+    background: var(--nids-bg-card);
+    border: 1px solid var(--nids-border);
+    border-radius: 4px;
+    padding: 3px 10px;
+}
+
+/* --- Bandeau d'avertissement "mode placeholder" ------------------------ */
+.nids-banner {
+    border-left: 3px solid var(--nids-warning);
+    background: var(--nids-bg-card);
+    border-radius: 4px;
+    padding: 0.7rem 1rem;
+    margin: 1rem 0 1.5rem 0;
+}
+
+.nids-banner__tag {
+    font-family: var(--nids-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--nids-warning);
+    text-transform: uppercase;
+}
+
+.nids-banner__text {
+    font-size: 0.88rem;
+    color: var(--nids-text-color, #e6edf3);
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+/* --- Carte d'alerte (verdict) ------------------------------------------ */
+.alert-card {
+    border-radius: 8px;
+    padding: 1.4rem 1.6rem;
+    background: var(--nids-bg-card);
+    border: 1px solid var(--nids-border);
+    height: 100%;
+}
+
+.alert-card--normal {
+    border-color: var(--nids-normal);
+    box-shadow: 0 0 0 1px var(--nids-normal) inset;
+}
+
+.alert-card--anomalie {
+    border-color: var(--nids-anomalie);
+    box-shadow: 0 0 0 1px var(--nids-anomalie) inset;
+}
+
+.alert-card__label {
+    font-family: var(--nids-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--nids-text-muted);
+}
+
+.alert-card__verdict {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0.3rem 0 1rem 0;
+}
+
+.alert-card__verdict--normal {
+    color: var(--nids-normal);
+}
+
+.alert-card__verdict--anomalie {
+    color: var(--nids-anomalie);
+}
+
+.alert-card__score {
+    font-family: var(--nids-mono);
+    font-size: 2.6rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--nids-text-color, #e6edf3);
+}
+
+.alert-card__score-label {
+    font-family: var(--nids-mono);
+    font-size: 0.72rem;
+    color: var(--nids-text-muted);
+    margin-top: 0.35rem;
+}
