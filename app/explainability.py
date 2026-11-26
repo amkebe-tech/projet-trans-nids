@@ -1,87 +1,72 @@
 """
-Module d'explicabilité (XAI).
+Module d'explicabilité (XAI) — moteur V7.
 
-Ce module définit la fonction explain() qui, pour une fenêtre de trafic et
-un verdict donnés, produit une explication indiquant quelles features ont le
-plus influencé la décision.
+Le score V7 d'un flux est la MOYENNE de quatre contributions, une par
+détecteur : −log10(p-valeur). L'alerte se déclenche si cette moyenne dépasse
+le seuil. On peut donc décomposer exactement la décision :
 
-IMPORTANT - Rôle de ce fichier dans le projet :
-------------------------------------------------
-À terme (cf. cahier des charges section 1.3 "Explicabilité et robustesse"),
-ce module utilisera SHAP, LIME et surtout TRUSTEE (un wrapper personnalisé
-qui convertit le score continu du VAE en classes binaires pour en extraire
-des règles logiques SI...ALORS).
+    score − seuil = Σ_détecteurs ( −log10 p_d − seuil ) / nombre de détecteurs
 
-Pour l'instant, ces bibliothèques ne sont pas branchées : explain() simule
-une explication de façon simple (poids aléatoires par feature), mais
-respecte le même format de sortie que ce que produiront SHAP/TRUSTEE plus
-tard. Cela permet de construire et tester l'affichage de l'explication dans
-Streamlit dès maintenant.
+Chaque terme est la contribution signée d'un détecteur :
+    positive -> pousse vers l'anomalie (rouge),
+    négative -> pousse vers la normalité (vert).
+C'est la même convention de signe que SHAP, reprise par l'affichage.
 
-Format du contrat :
---------------------
-Entrée  : window     -> tableau numpy (WINDOW_SIZE, len(FEATURES)), la même
-                         fenêtre que celle passée à model_interface.predict()
-          prediction -> dict retourné par predict() ({"score", "verdict"})
-Sortie  : dict {"methode": str, "importances": dict{feature: float}}
-          - "importances" associe à chaque nom de feature (config.FEATURES)
-            un poids d'importance. Plus la valeur est grande (en valeur
-            absolue), plus la feature est jugée responsable du verdict.
+En complément, pour le VAE, on indique quelles variables du flux il reconstruit
+le plus mal (part de l'erreur de reconstruction), et pour le contexte, les
+variables de comportement de la machine les plus éloignées du normal du réseau.
 
-Convention de signe (alignée sur SHAP, reprise par l'affichage Streamlit) :
-    un poids POSITIF pousse le score vers l'anomalie (affiché en rouge),
-    un poids NÉGATIF pousse le score vers la normalité (affiché en vert).
+Contrat (inchangé par rapport au prototype) :
+    explain(ligne, etat, seuil, erreurs_vae, contexte) ->
+        {"methode": str, "importances": {nom: poids signé}, "variables_vae": {...}, "contexte": {...}}
 """
+from __future__ import annotations
 
 import numpy as np
 
-# Import "voisin" (pas "from app.config import ...") : Streamlit exécute le
-# script en ajoutant le dossier app/ à sys.path, pas la racine du dépôt.
-from config import FEATURES, RANDOM_SEED
+from config import FEATURES, FEATURES_CONTEXTE, NOMS_DETECTEURS
 
-_rng = np.random.default_rng(RANDOM_SEED + 1)  # graine différente de model_interface pour varier les tirages
+LIBELLES_VARIABLES = {
+    "log_duree_ms": "durée", "log_pkts_aller": "paquets envoyés", "log_pkts_retour": "paquets reçus",
+    "log_octets_aller": "octets envoyés", "log_octets_retour": "octets reçus",
+    "log_octets_par_pkt_aller": "taille des paquets envoyés", "log_octets_par_pkt_retour": "taille des paquets reçus",
+    "log_ratio_pkts": "asymétrie en paquets", "log_ratio_octets": "asymétrie en octets",
+    "a_reponse": "réponse reçue", "proto_tcp": "TCP", "proto_udp": "UDP", "proto_autre": "autre protocole",
+}
+LIBELLES_CONTEXTE = {
+    "ctx_log_flux_src": "flux de la source (1 min)", "ctx_log_ports_src": "ports visés (1 min)",
+    "ctx_log_dest_src": "destinations visées (1 min)", "ctx_part_sans_rep_src": "part sans réponse (1 min)",
+    "ctx_log_flux_dst": "flux reçus par la destination (1 min)", "ctx_log_src_dst": "sources de la destination (1 min)",
+    "ctx600_log_flux_src": "flux de la source (10 min)", "ctx600_log_ports_src": "ports visés (10 min)",
+    "ctx600_log_dest_src": "destinations visées (10 min)", "ctx600_part_sans_rep_src": "part sans réponse (10 min)",
+    "ctx3600_log_flux_src": "flux de la source (1 h)", "ctx3600_log_ports_src": "ports visés (1 h)",
+    "ctx3600_log_dest_src": "destinations visées (1 h)", "ctx3600_part_sans_rep_src": "part sans réponse (1 h)",
+    "ctx600_log_flux_dst": "flux reçus par la destination (10 min)", "ctx600_log_src_dst": "sources de la destination (10 min)",
+    "ctx3600_log_flux_paire": "flux de la paire source → destination (1 h)",
+    "ctx3600_cv_intervalles": "irrégularité des intervalles (1 h, bas = balise de bot)",
+}
 
 
-def explain(window: np.ndarray, prediction: dict) -> dict:
-    """
-    Génère une explication simulée pour une prédiction donnée.
+def explain(ligne, etat, seuil: str, erreurs_vae: np.ndarray | None = None,
+            contexte_brut: np.ndarray | None = None) -> dict:
+    s = etat.seuils[seuil]
+    dets = [d for d in etat.refs_p if np.isfinite(ligne.get(f"−log p {d}", np.nan))]
+    n = max(len(dets), 1)
+    importances = {NOMS_DETECTEURS[d]: float((ligne[f"−log p {d}"] - s) / n) for d in dets}
 
-    Args:
-        window: tableau numpy (WINDOW_SIZE, len(FEATURES)), la fenêtre
-                analysée par predict().
-        prediction: dict retourné par model_interface.predict()
-                    (contient "score" et "verdict").
+    variables_vae = {}
+    if erreurs_vae is not None and np.sum(erreurs_vae) > 0:
+        part = erreurs_vae / np.sum(erreurs_vae)
+        variables_vae = {LIBELLES_VARIABLES.get(f, f): float(v) for f, v in zip(FEATURES, part)}
 
-    Returns:
-        dict avec :
-            - "methode": nom de la méthode d'explication utilisée
-            - "importances": dict {nom_feature: poids d'importance},
-              une entrée par feature définie dans config.FEATURES
-
-    Note pédagogique :
-        Les poids retournés ici sont tirés aléatoirement, ils ne reflètent
-        AUCUNE analyse réelle des contributions des features. C'est un
-        placeholder en attendant l'intégration de SHAP/LIME/TRUSTEE.
-    """
-    # --- PLACEHOLDER ---
-    # Le vrai module utilisera SHAP/LIME pour calculer la contribution
-    # réelle de chaque feature à l'erreur de reconstruction du VAE, ou
-    # TRUSTEE pour extraire une règle SI...ALORS à partir d'un arbre de
-    # décision approximant le modèle.
-    poids_bruts = _rng.uniform(low=-1.0, high=1.0, size=len(FEATURES))
-
-    # On normalise pour que la somme des valeurs absolues fasse 1, comme le
-    # font typiquement les scores SHAP (contribution relative de chaque
-    # feature).
-    somme_abs = np.sum(np.abs(poids_bruts))
-    poids_normalises = poids_bruts / somme_abs
-
-    importances = {
-        feature: float(poids)
-        for feature, poids in zip(FEATURES, poids_normalises)
-    }
+    contexte = {}
+    if contexte_brut is not None and etat.st_c is not None and np.isfinite(contexte_brut).all():
+        z = (contexte_brut - etat.st_c[0]) / etat.st_c[1]
+        contexte = {LIBELLES_CONTEXTE.get(f, f): float(v) for f, v in zip(FEATURES_CONTEXTE, z)}
 
     return {
-        "methode": "placeholder (aléatoire) - à remplacer par SHAP/LIME/TRUSTEE",
+        "methode": "décomposition exacte du score V7 par détecteur (−log10 p − seuil) / n",
         "importances": importances,
+        "variables_vae": variables_vae,
+        "contexte": contexte,
     }
