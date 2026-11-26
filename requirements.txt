@@ -1,20 +1,18 @@
-# Dépendances de l'application NIDS (moteur V7).
-# Testé avec Python 3.13, streamlit 1.67, torch 2.15 (CPU), pandas 3.1, numpy 2.5.
+--extra-index-url https://download.pytorch.org/whl/cpu
+# Index PyTorch CPU (ligne ci-dessus) : torch s'installe sans les roues CUDA
+# (plusieurs Go), indispensable sur Streamlit Community Cloud (Linux, sans GPU).
 #
-# Python 3.10 à 3.13 obligatoire : scikit-learn 1.6.1 n'existe pas pour 3.14.
+# Python 3.10 à 3.13 : scikit-learn 1.6.1 n'existe pas pour 3.14.
 # scikit-learn est épinglé : le modèle models/systeme_v7.joblib contient un
 # Isolation Forest sauvegardé avec scikit-learn 1.6.1.
+# Testé avec Python 3.12/3.13, streamlit 1.67, torch 2.15 (CPU), pandas 3.1, numpy 2.5.
 
-# PyTorch en version processeur (Linux / Windows) : évite les roues CUDA de
-# plusieurs Go, indispensable sur Streamlit Community Cloud.
---extra-index-url https://download.pytorch.org/whl/cpu
+streamlit>=1.67,<2
 torch>=2.2
-
 scikit-learn==1.6.1
 numpy>=1.26
 pandas>=2.2
 pyarrow>=15.0
 joblib>=1.3
-streamlit>=1.67,<2
-plotly>=5.22
 altair>=5.3
+plotly>=5.22
