@@ -226,3 +226,7 @@ __marimo__/
 *.pth
 *.npy
 *.pkl
+
+# --- Moteur V7 ---
+# États calibrés : propres à chaque réseau, recalculés par l'application.
+models/etats/

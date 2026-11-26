@@ -1,90 +1,93 @@
 """
-Interface du modèle de détection (contrat modèle).
+Interface du modèle de détection (contrat modèle) — moteur V7.
 
-Ce module définit LA fonction que le reste de l'application (Streamlit)
-utilise pour obtenir un verdict sur un morceau de trafic réseau : predict().
+L'interface Streamlit ne parle qu'à ce module. Il cache le fonctionnement
+interne du moteur (app/moteur_v7.py) derrière quatre fonctions :
 
-IMPORTANT - Rôle de ce fichier dans le projet :
-------------------------------------------------
-Le vrai modèle (VAE et/ou LSTM entraînés sur Colab, cf. cahier des charges
-section 1.3) n'est pas encore prêt. Ce fichier contient donc un PLACEHOLDER :
-il simule un score d'anomalie de façon simple (aléatoire), mais respecte
-exactement le même format d'entrée/sortie que le futur vrai modèle.
+    charger()                    -> le modèle entraîné (models/systeme_v7.joblib)
+    calibrer(fichier_sain)       -> état calibré du réseau (24 h de trafic NORMAL)
+    analyser(fichier, etat)      -> un tableau avec un score et une alerte par flux
+    predict(ligne, etat, seuil)  -> {"score": 0..1, "verdict": "normal" | "anomalie"}
 
-Quand le vrai modèle sera prêt, il suffira de remplacer le contenu de
-predict() (charger les poids .pth depuis models/, faire l'inférence PyTorch)
-SANS changer sa signature. Le reste de l'application (streamlit_app.py)
-n'aura donc aucune modification à faire.
+Le format de sortie de predict() est celui du prototype initial : la jauge
+et la carte de verdict de l'interface n'ont pas changé. Le score vaut 0,5
+exactement au seuil choisi.
 
-Format du contrat :
---------------------
-Entrée  : window -> tableau numpy de forme (WINDOW_SIZE, len(FEATURES))
-          C'est une fenêtre glissante de trafic réseau : WINDOW_SIZE pas de
-          temps consécutifs, chacun décrit par len(FEATURES) valeurs
-          numériques (dans l'ordre défini par config.FEATURES).
-Sortie  : dictionnaire {"score": float, "verdict": str}
-          - score   : un nombre entre 0 et 1 représentant le degré d'anomalie
-                       (0 = trafic parfaitement normal, 1 = anomalie totale)
-          - verdict : "normal" ou "anomalie", dérivé du score et du seuil
+Pourquoi une calibration ? Le système n'apprend que du trafic normal (logique
+zero-day). Sur un réseau nouveau, il doit d'abord apprendre « le normal de ce
+réseau » sur 24 h de trafic sain : sans cela, il produit 89 à 99 % de fausses
+alarmes (mesuré en V6 et V7). Voir documentation/V7-documentation-complete.md.
 """
+from __future__ import annotations
+
+from pathlib import Path
 
 import numpy as np
 
-# Import "voisin" (pas "from app.config import ...") : Streamlit exécute le
-# script en ajoutant le dossier app/ à sys.path, pas la racine du dépôt.
-from config import FEATURES, WINDOW_SIZE, SEUIL_ANOMALIE, RANDOM_SEED
+import moteur_v7 as mv
+from config import CHEMIN_MODELE, DOSSIER_ETATS
 
-# Générateur aléatoire dédié et reproductible (on évite np.random.seed()
-# global qui affecterait tout le programme, y compris d'autres modules).
-_rng = np.random.default_rng(RANDOM_SEED)
+_MODELE = None
 
 
-def predict(window: np.ndarray) -> dict:
-    """
-    Calcule un score d'anomalie pour une fenêtre de trafic réseau.
-
-    Args:
-        window: tableau numpy de forme (WINDOW_SIZE, len(FEATURES)).
-                Chaque ligne = un pas de temps, chaque colonne = une feature
-                (dans l'ordre de config.FEATURES).
-
-    Returns:
-        dict avec deux clés :
-            - "score": float entre 0 et 1 (score d'anomalie)
-            - "verdict": "normal" ou "anomalie"
-
-    Note pédagogique :
-        Pour l'instant, le score est simulé (tirage aléatoire). Il ne reflète
-        AUCUNE analyse réelle du trafic. C'est uniquement pour permettre de
-        développer et tester l'interface Streamlit avant que le vrai modèle
-        (VAE/LSTM) ne soit disponible.
-    """
-    _valider_forme_fenetre(window)
-
-    # --- PLACEHOLDER ---
-    # Le vrai modèle calculera ici une erreur de reconstruction (VAE) ou une
-    # probabilité issue du LSTM. En attendant, on simule un score aléatoire
-    # uniforme entre 0 et 1.
-    score = float(_rng.uniform(0.0, 1.0))
-
-    verdict = "anomalie" if score > SEUIL_ANOMALIE else "normal"
-
-    return {"score": score, "verdict": verdict}
+def charger(chemin: Path = CHEMIN_MODELE) -> mv.Modele:
+    """Charge (une seule fois) le modèle V7 entraîné sur Kaggle."""
+    global _MODELE
+    if _MODELE is None:
+        if not Path(chemin).exists():
+            raise FileNotFoundError(
+                f"Modèle introuvable : {chemin}. Téléchargez systeme_v7.joblib depuis les sorties Kaggle "
+                "du notebook V7 et placez-le dans le dossier models/."
+            )
+        _MODELE = mv.charger_modele(chemin)
+    return _MODELE
 
 
-def _valider_forme_fenetre(window: np.ndarray) -> None:
-    """
-    Vérifie que la fenêtre passée en entrée a bien la forme attendue par le
-    contrat : (WINDOW_SIZE, len(FEATURES)).
+def lire(fichier, nom: str | None = None) -> mv.Flux:
+    """Lit un journal Zeek (conn.log, CSV ou parquet) et calcule les variables V7."""
+    return mv.preparer(mv.lire_journal(fichier, nom))
 
-    On lève une erreur explicite plutôt que de laisser le modèle planter
-    plus loin avec un message cryptique.
-    """
-    forme_attendue = (WINDOW_SIZE, len(FEATURES))
-    if window.shape != forme_attendue:
-        raise ValueError(
-            f"Forme de fenêtre invalide : reçu {window.shape}, "
-            f"attendu {forme_attendue} "
-            f"(WINDOW_SIZE={WINDOW_SIZE} pas de temps x "
-            f"{len(FEATURES)} features définies dans config.FEATURES)."
-        )
+
+def calibrer(flux: mv.Flux, progression=None) -> mv.EtatCalibre:
+    return mv.calibrer(charger(), flux, progression)
+
+
+def analyser(flux: mv.Flux, etat: mv.EtatCalibre, progression=None):
+    """Renvoie (tableau des flux avec scores et alertes, erreurs du VAE par variable)."""
+    return mv.analyser(charger(), etat, flux, progression)
+
+
+def predict(ligne, etat: mv.EtatCalibre, seuil: str = "1 %") -> dict:
+    """Verdict d'un flux déjà analysé, au format du prototype : score entre 0 et 1, 0,5 au seuil."""
+    s = etat.seuils[seuil]
+    score = float(mv.niveau(ligne["score V7"], s))
+    return {"score": score, "verdict": "anomalie" if ligne["score V7"] >= s else "normal"}
+
+
+# --- États calibrés sauvegardés (un par réseau) -----------------------------
+def _fichier_etat(nom: str) -> Path:
+    propre = "".join(c if c.isalnum() or c in "-_" else "_" for c in nom.strip()) or "reseau"
+    return DOSSIER_ETATS / f"{propre}.joblib"
+
+
+def sauver_etat(etat: mv.EtatCalibre, nom: str) -> Path:
+    DOSSIER_ETATS.mkdir(parents=True, exist_ok=True)
+    p = _fichier_etat(nom)
+    mv.sauver_etat(etat, p)
+    return p
+
+
+def etats_disponibles() -> list[str]:
+    return sorted(p.stem for p in DOSSIER_ETATS.glob("*.joblib")) if DOSSIER_ETATS.exists() else []
+
+
+def charger_etat(nom: str) -> mv.EtatCalibre:
+    return mv.charger_etat(_fichier_etat(nom))
+
+
+def metriques(resultats, seuil: str):
+    return mv.metriques(resultats, seuil)
+
+
+def niveau(scores, etat: mv.EtatCalibre, seuil: str):
+    return mv.niveau(np.asarray(scores), etat.seuils[seuil])

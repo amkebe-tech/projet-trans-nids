@@ -3,7 +3,7 @@
 # des secrets par erreur).
 .git/
 notebooks/
-models/
+models/etats/
 src/
 *.csv
 *.parquet

@@ -1,15 +1,18 @@
-# Dépendances actuelles du prototype (placeholders uniquement).
-streamlit>=1.38
-pandas>=2.2
+# Dépendances de l'application NIDS (moteur V7).
+#
+# scikit-learn est épinglé : le modèle models/systeme_v7.joblib contient un
+# Isolation Forest sauvegardé avec scikit-learn 1.6.1 (Kaggle). Une autre
+# version peut refuser de le relire ou donner des scores différents.
+# Python 3.10 à 3.13 (scikit-learn 1.6.1 n'existe pas pour Python 3.14).
+#
+# PyTorch : la version processeur suffit (inférence et ajustement léger).
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+scikit-learn==1.6.1
 numpy>=1.26
-plotly>=5.22   # jauge de score dans l'écran "Résultat"
-altair>=5.3    # graphique de contribution des features (déjà utilisé en interne par Streamlit, mais on le déclare car on l'importe directement)
-
-# Dépendances qui seront nécessaires quand le vrai modèle (VAE/LSTM) et le
-# vrai module d'explicabilité seront branchés. Décommenter au moment de
-# l'intégration :
-# torch>=2.2          # inférence du VAE / LSTM entraîné sur Colab
-# pyarrow>=15.0        # lecture des fichiers .parquet du pipeline de données
-# shap>=0.45
-# lime>=0.2
-# trustee>=1.1
+pandas>=2.2
+pyarrow>=15.0
+joblib>=1.3
+streamlit>=1.50
+plotly>=5.22
+altair>=5.3
