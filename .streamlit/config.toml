@@ -1,26 +1,34 @@
-# Thème global de l'application, façon "console SOC" (dark mode, accent
-# cyan technique). C'est la méthode propre et supportée par Streamlit pour
-# définir un thème cohérent — à préférer au CSS custom partout où c'est
-# possible. Le CSS custom (app/assets/style.css) ne sert qu'à ce que ce
-# fichier de thème ne peut pas faire (cartes, badges, police monospace
-# ciblée, etc.).
+# Thème "console SOC" : graphite sobre, bordures fines, densité élevée.
+# Le CSS custom (app/assets/style.css) ne couvre que ce que le thème ne peut pas faire.
 [theme]
 base = "dark"
+primaryColor = "#3b82f6"
+backgroundColor = "#0f1115"
+secondaryBackgroundColor = "#171a21"
+textColor = "#d5d9e0"
+borderColor = "#262b35"
+linkColor = "#60a5fa"
+codeBackgroundColor = "#171a21"
+showWidgetBorder = true
+baseRadius = "4px"
+buttonRadius = "4px"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+baseFontSize = 14
+headingFontSizes = ["22px", "18px", "15px", "14px", "13px", "12px"]
+headingFontWeights = [600, 600, 600, 600, 500, 500]
+metricValueFontSize = "1.6rem"
+metricValueFontWeight = 600
+linkUnderline = false
 
-# Bleu nuit / anthracite plutôt que noir pur : plus doux à l'œil sur de
-# longues sessions de monitoring, standard dans les outils SOC/SIEM.
-backgroundColor = "#0b1220"
-secondaryBackgroundColor = "#121a2b"
+redColor = "#e5484d"
+greenColor = "#30a46c"
+orangeColor = "#f59e0b"
+blueColor = "#3b82f6"
+grayColor = "#7c8594"
 
-# Texte clair, légèrement bleuté plutôt que blanc pur (moins agressif).
-textColor = "#e6edf3"
+dataframeBorderColor = "#262b35"
+dataframeHeaderBackgroundColor = "#1c2029"
+dataframeHeaderTextColor = "#9aa3b2"
 
-# Bleu-cyan technique, façon terminal réseau — remplace le violet par
-# défaut de Streamlit. Utilisé pour les boutons, sliders, liens, éléments
-# actifs.
-primaryColor = "#22d3ee"
-
-# Police de base sans-serif pour les titres et le texte explicatif. Les
-# valeurs numériques/techniques (scores, features) sont mises en monospace
-# via le CSS custom, pas via ce réglage global.
-font = "sans serif"
+chartCategoricalColors = ["#3b82f6", "#30a46c", "#e5484d", "#f59e0b", "#8b5cf6", "#7c8594"]
